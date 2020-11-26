@@ -39,6 +39,7 @@ data Config = Config
   { configBuildDir :: FilePath,
     configDb :: String,
     configShpZip :: Map String ShpZip,
+    configGis :: Map String String,
     configPg :: Map String FilePath,
     configSql :: Map String Sql
   }

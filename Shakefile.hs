@@ -1,4 +1,3 @@
-
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -14,7 +13,7 @@ import qualified RIO.Map as Map
 main :: IO ()
 main = do
   -- Read the config
-  (Config bld dbName shpFiles _ _) <- input auto "./nzh.dhall"
+  (Config bld dbName shpFiles gisFiles _ _) <- input auto "./nzh.dhall"
   let db = bld </> dbName
 
   -- run shake
@@ -27,7 +26,7 @@ main = do
     $ do
       want $
         [bld </> "shp" </> t | t <- Map.keys shpFiles]
-          -- ++ [bld </> "sql" </> f | f <- Map.keys sqlFiles]
+          ++ [bld </> "gis" </> f | f <- Map.keys gisFiles]
 
       phony "clean" $ do
         putInfo "Cleaning files in .build"
@@ -50,7 +49,6 @@ main = do
             command_ [] "wget" [src, "-O", o]
           Nothing -> putNormal $ "config problem for " <> o
 
-
       bld </> "shp/*" %> \o -> do
         let key = takeBaseName o
             path = bld </> "shp"
@@ -60,25 +58,35 @@ main = do
             need [db, zipf]
             command_ [Cwd path] "unzip" ["-o", ".." </> ".." </> zipf]
             command_ [] "psql" ["-c", "DROP TABLE IF EXISTS " <> key]
-            (Stdout sout) <- command [Cwd bld] "shp2pgsql" ["-d", "-D", "-s", "4326", "-I", fname, key]
+            (Stdout sout) <- command [Cwd bld] "shp2pgsql" ["-d", "-D", "-s", "2193", "-I", fname, key]
             command_ [StdinBS sout] "psql" [dbName]
             command_ [] "touch" [o]
           Nothing -> putNormal $ "config problem for " <> o
 
-      -- bld </> "pg/*" %> \o -> do
-      --   let key = takeBaseName o
-      --   case Map.lookup key pgFiles of
-      --     Just src -> do
-      --       need [src, db]
-      --       command_ [] "pg_restore" ["-Fc", "-d", dbName, "--if-exists", "-c", src]
-      --       command_ [] "touch" [o]
-      --     Nothing -> putNormal $ "config problem for " <> o
+      bld </> "gis/*" %> \o -> do
+        need [db]
+        let key = takeBaseName o
+        case Map.lookup key gisFiles of
+          Just fname -> do
+            command_ [] "psql" ["-c", "DROP TABLE IF EXISTS " <> key, dbName]
+            command_ [] "ogr2ogr" ["-f", "PostgreSQL", "PG:dbname=" <> dbName, "gis" </> fname, "-nln", key]
+            command_ [] "touch" [o]
+          Nothing -> putNormal $ "config problem for " <> o
 
-      -- bld </> "sql/*" %> \o -> do
-      --   let key = takeBaseName o
-      --   case Map.lookup key sqlFiles of
-      --     Just (Sql src deps) -> do
-      --       need (src : [bld </> d | d <- deps] )
-      --       command_ [] "psql" ["-f", src, "-d", dbName]
-      --       command_ [] "touch" [o]
-      --     Nothing -> putNormal $ "config problem for " <> o
+-- bld </> "pg/*" %> \o -> do
+--   let key = takeBaseName o
+--   case Map.lookup key pgFiles of
+--     Just src -> do
+--       need [src, db]
+--       command_ [] "pg_restore" ["-Fc", "-d", dbName, "--if-exists", "-c", src]
+--       command_ [] "touch" [o]
+--     Nothing -> putNormal $ "config problem for " <> o
+
+-- bld </> "sql/*" %> \o -> do
+--   let key = takeBaseName o
+--   case Map.lookup key sqlFiles of
+--     Just (Sql src deps) -> do
+--       need (src : [bld </> d | d <- deps] )
+--       command_ [] "psql" ["-f", src, "-d", dbName]
+--       command_ [] "touch" [o]
+--     Nothing -> putNormal $ "config problem for " <> o

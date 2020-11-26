@@ -3,9 +3,14 @@ let config =
       , buildDir = ".build"
       , shpZip = toMap
           { imd =
-              { url = "https://www.fmhs.auckland.ac.nz/content/dam/uoa/fmhs/soph/epi/hgd/docs/IMD2018.zip",
-                file = "IMD2018.shp"
-              }
+            { url =
+                "https://www.fmhs.auckland.ac.nz/content/dam/uoa/fmhs/soph/epi/hgd/docs/IMD2018.zip"
+            , file = "IMD2018.shp"
+            }
+          }
+      , gis = toMap
+          { med = "maori-electorates-2020/maori-electorates-2020.gdb"
+          , ged = "general-electorates-2020/general-electorates-2020.gdb"
           }
       , pg = toMap { route = "data/routes.pg" }
       , sql = toMap
